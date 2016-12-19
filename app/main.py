@@ -13,7 +13,7 @@ mutations = {
 @click.command()
 @click.option('--iter', type=int, prompt='Set number of iterations',
               help='Number of algorithm iterations')
-@click.option('--limit', type=float, default=0.5,
+@click.option('--limit', type=float, default=0.2,
               help='\"1/5\" ratio limit')
 @click.option('--mutation',
               type=click.Choice(['reverse_cut', 'swap', 'shuffle', 'all']),

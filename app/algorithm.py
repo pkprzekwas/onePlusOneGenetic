@@ -19,24 +19,31 @@ class OnePlusOne(object):
     def load_data(self, file_name='att48_d.txt'):
         self.dataset = get_dataset(file_name)
 
-    def run(self, route, mutation, limit=0.2, mutations=10, max_iter_num=1000):
+    def run(self, route, mutation, limit=0.2, mutations=25, max_iter_num=1000):
         distance = self.count_distance(route=route)
         iter_num = 0
         final_iter = 0
         success = 0
+        m_size = self.get_matrix_size()
 
         while iter_num < max_iter_num:
             iter_num += 1
+
             # 1/5 rule
             ratio = self.count_ratio(success, iter_num)
             if ratio > limit:
-                mutations = int(((0.81)**(-1))*mutations)
+                mutations = int(((0.81)**-1)*mutations) if mutations < m_size else m_size
             elif ratio < limit and mutations > 1:
-                mutations = int((0.81)*mutations)
+                if mutations > 5:
+                    mutations = int((0.81)*mutations) if mutations < m_size else m_size
             else:
                 mutations = mutations
 
             # mutations
+            if mutations > m_size:
+                mutations = m_size
+            if mutations < 5:
+                mutations = 5
             new_route = mutation(route=route[:], mut_range=mutations)
             for i in range(0, 3):
                 new_route = mutation(route=new_route[:], mut_range=mutations)
@@ -123,10 +130,10 @@ class OnePlusOne(object):
 
     @classmethod
     def swap(cls, route, mut_range):
-        a = randint(0, mut_range)
-        b = randint(0, mut_range)
+        a = randint(1, mut_range-1)
+        b = randint(1, mut_range-1)
         while a == b:
-            b = randint(0, mut_range)
+            b = randint(1, mut_range-1)
         route[b], route[a] = route[a], route[b]
         return route
 
@@ -139,7 +146,7 @@ class OnePlusOne(object):
         return reverse_sublist(route, a, b)
 
     @classmethod
-    def shuffle(cls, route):
+    def shuffle(cls, route, mut_range):
         shuffle(route)
         return route
 
