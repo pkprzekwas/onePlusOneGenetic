@@ -22,6 +22,9 @@ mutations = {
 @click.option('--to_file', default=False,
               help='Saves output to file')
 def run(iter, mutation, to_file, limit):
+    """
+    Traveling Salesman problem with 1+1 genetic strategy.
+    """
     if mutation != 'all':
         opo = OnePlusOne()
         mutation_type = mutations[mutation]

@@ -30,16 +30,16 @@ class OnePlusOne(object):
             # 1/5 rule
             ratio = self.count_ratio(success, iter_num)
             if ratio > limit:
-                mutations += 1
+                mutations = int(((0.81)**(-1))*mutations)
             elif ratio < limit and mutations > 1:
-                mutations -= 1
+                mutations = int((0.81)*mutations)
             else:
                 mutations = mutations
 
             # mutations
-            new_route = mutation(route=route[:])
-            for i in range(0, mutations):
-                new_route = mutation(route=new_route[:])
+            new_route = mutation(route=route[:], mut_range=mutations)
+            for i in range(0, 3):
+                new_route = mutation(route=new_route[:], mut_range=mutations)
             new_distance = self.count_distance(route=new_route)
 
             if new_distance <= distance:
@@ -122,20 +122,20 @@ class OnePlusOne(object):
         return float(success) / float(rounds)
 
     @classmethod
-    def swap(cls, route):
-        a = randint(0, len(route)-1)
-        b = randint(0, len(route)-1)
+    def swap(cls, route, mut_range):
+        a = randint(0, mut_range)
+        b = randint(0, mut_range)
         while a == b:
-            b = randint(0, len(route)-1)
+            b = randint(0, mut_range)
         route[b], route[a] = route[a], route[b]
         return route
 
     @classmethod
-    def rev_list(cls, route):
-        a = randint(0, len(route)-1)
-        b = randint(0, len(route)-1)
+    def rev_list(cls, route, mut_range):
+        a = randint(0, mut_range)
+        b = randint(0, mut_range)
         while a == b:
-            b = randint(0, len(route)-1)
+            b = randint(0, mut_range)
         return reverse_sublist(route, a, b)
 
     @classmethod
