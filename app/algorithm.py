@@ -1,157 +1,73 @@
-from random import shuffle, randint
-import matplotlib.pyplot as plt
-import click
+from copy import deepcopy
+from math import floor, ceil
 
-from app.data import get_dataset
+from app.data import Dataset
+from app.chromosome import Chromosome
+from app.result import Results
+from app.bases import Algorithm
 
 
-class OnePlusOne(object):
-    """
+class Strategy1plus1(Algorithm):
 
-    Implementation of (1+1) genetic strategy.
+    def __init__(self, mutation_type='reverse_cut', filename='gr17_d.txt', limit=0.2):
+        self.results = Results()
+        self.limit = limit
+        self.data_set = Dataset(filename)
+        self.initial_mutation_range = floor(len(self.data_set) / 2)
+        self.chromosome = self._create_chromosome(mutation_type)
 
-    """
-
-    def __init__(self):
-        self.results = {}
-        self.load_data()
-
-    def load_data(self, file_name='att48_d.txt'):
-        self.dataset = get_dataset(file_name)
-
-    def run(self, route, mutation, limit=0.2, mutations=25, max_iter_num=1000):
-        distance = self.count_distance(route=route)
+    def run(self, loops=1000):
         iter_num = 0
         final_iter = 0
         success = 0
-        m_size = self.get_matrix_size()
+        score = self.criterion_function(self.chromosome.seq)
+        m_range = self.initial_mutation_range
 
-        while iter_num < max_iter_num:
+        while iter_num < loops:
             iter_num += 1
 
             # 1/5 rule
-            ratio = self.count_ratio(success, iter_num)
-            if ratio > limit:
-                mutations = int(((0.81)**-1)*mutations) if mutations < m_size else m_size
-            elif ratio < limit and mutations > 1:
-                if mutations > 5:
-                    mutations = int((0.81)*mutations) if mutations < m_size else m_size
-            else:
-                mutations = mutations
+            ratio = success/iter_num
+            m_range = self.get_range(ratio, m_range)
 
-            # mutations
-            if mutations > m_size:
-                mutations = m_size
-            if mutations < 5:
-                mutations = 5
-            new_route = mutation(route=route[:], mut_range=mutations)
-            for i in range(0, 3):
-                new_route = mutation(route=new_route[:], mut_range=mutations)
-            new_distance = self.count_distance(route=new_route)
+            new_chromosome = deepcopy(self.chromosome)
+            new_chromosome.mutate(m_range)
+            new_score = self.criterion_function(new_chromosome.seq)
 
-            if new_distance <= distance:
-                distance = new_distance
-                route = new_route
+            if new_score <= score:
+                score = new_score
+                self.chromosome = new_chromosome
                 final_iter = iter_num
                 success += 1
 
-            self.save(iter_num=iter_num, route=route, mutated=new_route,
-                      distance=distance, final_iter=final_iter, mutations=mutations, success=success)
+            self.results.update(iter_num=iter_num, chromosome=self.chromosome.seq, mutated=new_chromosome.seq,
+                                score=score, final_iter=final_iter, ratio=ratio, success=success)
 
-    def save(self, *, iter_num, route, mutated, distance, final_iter, mutations, success):
-        self.results[iter_num] = {
-            "route": route,
-            "mutated": mutated,
-            "distance": distance,
-            "final_iter": final_iter,
-            "mutations": mutations,
-            "success": success,
-            "repr": "\tIteration: {}\n\tRoute: {}\n\tMutated: {}\n\tDistance: {}\tFinal iteration: {}"
-                    "\tMutations: {}\tSuccesses: {}\n"
-                .format(iter_num, route, mutated, distance, final_iter, mutations, success),
-            "repr_less": "\t\tIteration: {}\t\tDistance: {}\t\tFinal iteration: {}"
-                    "\t\tMutations: {}\t\t\tSuccesses: {}"
-                .format(iter_num, distance, final_iter, mutations, success)
-        }
+    def criterion_function(self, sequence):
+        score = 0
+        for fenotype in range(len(sequence) - 2):
+            score += self.data_set.data[sequence[fenotype]][sequence[fenotype + 1]]
+        return score
 
-    def plot(self, iter_num):
-        x = []
-        y = []
-        max_dist = self.results[1]["distance"]
-        min_dist = self.results[iter_num]["distance"]
+    def _create_chromosome(self, mutation_type):
+        chromosome = Chromosome(length=len(self.data_set), mutatuion_type=mutation_type)
+        return chromosome
 
-        for key, val in self.results.items():
-            x.append(key)
-            y.append(val["distance"])
-        click.echo("\n\n{}\n\n".format(self.results[iter_num]["repr"]))
-        plt.plot(x, y)
-        plt.axis([1, iter_num, min_dist, max_dist])
-        plt.show()
+    def get_range(self, ratio, range):
+        if ratio > self.limit:
+            range = ceil((0.81 ** (- 1)) * range)
+        elif ratio < self.limit:
+            if range > ceil(self.chromosome.length / 3):
+                range = ceil(0.81 * range)
+        else:
+            range = range
 
-    def plot_data(self, iter_num):
-        x = []
-        y = []
-        max_dist = self.results[1]["distance"]
-        min_dist = self.results[iter_num]["distance"]
+        if range > self.chromosome.length:
+            range = self.chromosome.length
+        if range < ceil(self.chromosome.length / 3):
+            range = ceil(self.chromosome.length / 3)
+        return range
 
-        for key, val in self.results.items():
-            x.append(key)
-            y.append(val["distance"])
-        return x, y, max_dist, min_dist
-
-    def print_results(self):
-        for key, val in self.results.items():
-            click.echo((val["repr_less"]))
-
-    def save_results(self):
-        file = open('out.txt', 'w')
-        for key, val in self.results.items():
-            file.write("{}\n".format(val["repr"]))
-        file.close()
-
-    def generate_route(self):
-        route = [i for i in range(0, self.get_matrix_size())]
-        shuffle(route)
-        return route
-
-    def count_distance(self, route):
-        distance = 0
-        for city in range(len(route) - 1):
-            distance += self.dataset[route[city]][route[city + 1]]
-        return distance
-
-    def get_matrix_size(self):
-        matrix_shape = self.dataset.shape
-        return matrix_shape[0]
-
-    @classmethod
-    def count_ratio(cls, success, rounds):
+    @staticmethod
+    def _count_ratio(success, rounds):
         return float(success) / float(rounds)
-
-    @classmethod
-    def swap(cls, route, mut_range):
-        a = randint(1, mut_range-1)
-        b = randint(1, mut_range-1)
-        while a == b:
-            b = randint(1, mut_range-1)
-        route[b], route[a] = route[a], route[b]
-        return route
-
-    @classmethod
-    def rev_list(cls, route, mut_range):
-        a = randint(0, mut_range)
-        b = randint(0, mut_range)
-        while a == b:
-            b = randint(0, mut_range)
-        return reverse_sublist(route, a, b)
-
-    @classmethod
-    def shuffle(cls, route, mut_range):
-        shuffle(route)
-        return route
-
-
-def reverse_sublist(lst, start, end):
-    lst[start:end] = lst[start:end][::-1]
-    return lst
-
